@@ -1,0 +1,399 @@
+# Flash Attention Tensor Parallelism Configuration File
+# Supports different TP sizes and attention modes
+
+# ============================================================================
+# TP Size Configuration
+# ============================================================================
+
+tp_sizes:
+  - 1   # Single device (baseline)
+  - 2   # 2-way TP
+  - 4   # 4-way TP (recommended for trn2.3xlarge)
+  - 8   # 8-way TP (requires trn2.48xlarge)
+
+# ============================================================================
+# MHA Configuration (Multi-Head Attention)
+# ============================================================================
+
+mha:
+  name: "Multi-Head Attention"
+
+  # Base configuration
+  base:
+    num_q_heads: 32
+    num_k_heads: 32
+    num_v_heads: 32
+    head_dim: 128
+    seq_len: 4096
+    batch_size: 16
+    dtype: "bfloat16"
+
+  # TP=1 (single device)
+  tp1:
+    num_devices: 1
+    q_heads_per_device: 32
+    k_heads_per_device: 32
+    v_heads_per_device: 32
+
+  # TP=2
+  tp2:
+    num_devices: 2
+    q_heads_per_device: 16
+    k_heads_per_device: 16
+    v_heads_per_device: 16
+
+  # TP=4
+  tp4:
+    num_devices: 4
+    q_heads_per_device: 8
+    k_heads_per_device: 8
+    v_heads_per_device: 8
+
+  # TP=8
+  tp8:
+    num_devices: 8
+    q_heads_per_device: 4
+    k_heads_per_device: 4
+    v_heads_per_device: 4
+
+# ============================================================================
+# GQA Configuration (Grouped-Query Attention)
+# ============================================================================
+
+gqa:
+  name: "Grouped-Query Attention"
+
+  # Base configuration (Llama 2/3 style: 32 Q heads, 8 KV heads)
+  base:
+    num_q_heads: 32
+    num_k_heads: 8
+    num_v_heads: 8
+    head_dim: 128
+    seq_len: 8192
+    batch_size: 8
+    dtype: "bfloat16"
+    ratio: "4:1"  # Q:KV ratio
+
+  # TP=1
+  tp1:
+    num_devices: 1
+    q_heads_per_device: 32
+    k_heads_per_device: 8
+    v_heads_per_device: 8
+
+  # TP=2
+  tp2:
+    num_devices: 2
+    q_heads_per_device: 16
+    k_heads_per_device: 4
+    v_heads_per_device: 4
+
+  # TP=4
+  tp4:
+    num_devices: 4
+    q_heads_per_device: 8
+    k_heads_per_device: 2
+    v_heads_per_device: 2
+
+  # TP=8
+  tp8:
+    num_devices: 8
+    q_heads_per_device: 4
+    k_heads_per_device: 1
+    v_heads_per_device: 1
+
+# ============================================================================
+# MQA Configuration (Multi-Query Attention)
+# ============================================================================
+
+mqa:
+  name: "Multi-Query Attention"
+
+  # Base configuration (32 Q heads, 1 KV head - all replicated)
+  base:
+    num_q_heads: 32
+    num_k_heads: 1
+    num_v_heads: 1
+    head_dim: 128
+    seq_len: 4096
+    batch_size: 16
+    dtype: "bfloat16"
+    ratio: "32:1"  # Q:KV ratio
+
+  # TP=1
+  tp1:
+    num_devices: 1
+    q_heads_per_device: 32
+    k_heads_per_device: 1  # replicated
+    v_heads_per_device: 1  # replicated
+    kv_replicated: true
+
+  # TP=2
+  tp2:
+    num_devices: 2
+    q_heads_per_device: 16
+    k_heads_per_device: 1  # replicated
+    v_heads_per_device: 1  # replicated
+    kv_replicated: true
+
+  # TP=4
+  tp4:
+    num_devices: 4
+    q_heads_per_device: 8
+    k_heads_per_device: 1  # replicated
+    v_heads_per_device: 1  # replicated
+    kv_replicated: true
+
+  # TP=8
+  tp8:
+    num_devices: 8
+    q_heads_per_device: 4
+    k_heads_per_device: 1  # replicated
+    v_heads_per_device: 1  # replicated
+    kv_replicated: true
+
+# ============================================================================
+# Hardware Configuration
+# ============================================================================
+
+hardware:
+  trn2_xlarge:
+    name: "trn2.xlarge"
+    neuron_cores: 2
+    hbm_memory: "32GB"
+    max_tp_size: 2
+
+  trn2_3xlarge:
+    name: "trn2.3xlarge"
+    neuron_cores: 4
+    hbm_memory: "96GB"
+    max_tp_size: 4
+
+  trn2_8xlarge:
+    name: "trn2.8xlarge"
+    neuron_cores: 8
+    hbm_memory: "192GB"
+    max_tp_size: 8
+
+  trn2_48xlarge:
+    name: "trn2.48xlarge"
+    neuron_cores: 16
+    hbm_memory: "768GB"
+    max_tp_size: 16
+
+# ============================================================================
+# Test Scenarios
+# ============================================================================
+
+test_scenarios:
+  # Quick test (small scale)
+  quick:
+    seq_len: 2048
+    batch_size: 16
+    num_heads: 16
+    description: "Quick validation (2K seq)"
+
+  # Standard test (medium scale)
+  standard:
+    seq_len: 4096
+    batch_size: 16
+    num_heads: 32
+    description: "Standard test (4K seq)"
+
+  # Large scale test (TP recommended)
+  large:
+    seq_len: 8192
+    batch_size: 16
+    num_heads: 32
+    description: "Large scale test (8K seq, TP recommended)"
+
+  # Extreme test (TP required)
+  extreme:
+    seq_len: 16384
+    batch_size: 16
+    num_heads: 32
+    description: "Extreme test (16K seq, TP required)"
+
+# ============================================================================
+# Recommendations
+# ============================================================================
+
+recommendations:
+  # Recommended TP size by hardware
+  by_hardware:
+    trn2_xlarge:
+      max_tp: 2
+      recommended: [1, 2]
+    trn2_3xlarge:
+      max_tp: 4
+      recommended: [1, 2, 4]
+    trn2_8xlarge:
+      max_tp: 8
+      recommended: [1, 2, 4, 8]
+    trn2_48xlarge:
+      max_tp: 16
+      recommended: [1, 2, 4, 8]
+
+  # Recommended TP by sequence length
+  by_sequence_length:
+    "<2K": "TP=1 (single device sufficient)"
+    "2K-4K": "TP=1 or TP=2"
+    "4K-8K": "TP=2 or TP=4 (recommended)"
+    "8K-16K": "TP=4 or TP=8 (recommended)"
+    ">16K": "TP=8+ (required)"
+
+  # Recommended by mode
+  by_mode:
+    mha: "Good for training, TP=4 recommended"
+    gqa: "Recommended choice, TP=4 optimal"
+    mqa: "Long sequence inference, TP=8 optimal"
+
+# ============================================================================
+# Complete Test Matrix - 72 Combinations
+# ============================================================================
+
+sweep_configs:
+  description: "Complete test matrix configuration"
+  total_combinations: 72
+  dimensions:
+    modes: [mha, gqa, mqa]
+    tp_sizes: [1, 2, 4]
+    batch_sizes: [4, 8, 12, 16]
+    seq_lengths: [4096, 8192]
+
+  # MHA combinations (3 TP × 4 Batch × 2 Seq = 24 configs)
+  mha_combinations:
+    # TP=1
+    - {mode: mha, tp: 1, batch: 4,  seq: 4096, label: "mha_tp1_b4_s4k"}
+    - {mode: mha, tp: 1, batch: 4,  seq: 8192, label: "mha_tp1_b4_s8k"}
+    - {mode: mha, tp: 1, batch: 8,  seq: 4096, label: "mha_tp1_b8_s4k"}
+    - {mode: mha, tp: 1, batch: 8,  seq: 8192, label: "mha_tp1_b8_s8k"}
+    - {mode: mha, tp: 1, batch: 12, seq: 4096, label: "mha_tp1_b12_s4k"}
+    - {mode: mha, tp: 1, batch: 12, seq: 8192, label: "mha_tp1_b12_s8k"}
+    - {mode: mha, tp: 1, batch: 16, seq: 4096, label: "mha_tp1_b16_s4k"}
+    - {mode: mha, tp: 1, batch: 16, seq: 8192, label: "mha_tp1_b16_s8k"}
+    # TP=2
+    - {mode: mha, tp: 2, batch: 4,  seq: 4096, label: "mha_tp2_b4_s4k"}
+    - {mode: mha, tp: 2, batch: 4,  seq: 8192, label: "mha_tp2_b4_s8k"}
+    - {mode: mha, tp: 2, batch: 8,  seq: 4096, label: "mha_tp2_b8_s4k"}
+    - {mode: mha, tp: 2, batch: 8,  seq: 8192, label: "mha_tp2_b8_s8k"}
+    - {mode: mha, tp: 2, batch: 12, seq: 4096, label: "mha_tp2_b12_s4k"}
+    - {mode: mha, tp: 2, batch: 12, seq: 8192, label: "mha_tp2_b12_s8k"}
+    - {mode: mha, tp: 2, batch: 16, seq: 4096, label: "mha_tp2_b16_s4k"}
+    - {mode: mha, tp: 2, batch: 16, seq: 8192, label: "mha_tp2_b16_s8k"}
+    # TP=4
+    - {mode: mha, tp: 4, batch: 4,  seq: 4096, label: "mha_tp4_b4_s4k"}
+    - {mode: mha, tp: 4, batch: 4,  seq: 8192, label: "mha_tp4_b4_s8k"}
+    - {mode: mha, tp: 4, batch: 8,  seq: 4096, label: "mha_tp4_b8_s4k"}
+    - {mode: mha, tp: 4, batch: 8,  seq: 8192, label: "mha_tp4_b8_s8k"}
+    - {mode: mha, tp: 4, batch: 12, seq: 4096, label: "mha_tp4_b12_s4k"}
+    - {mode: mha, tp: 4, batch: 12, seq: 8192, label: "mha_tp4_b12_s8k"}
+    - {mode: mha, tp: 4, batch: 16, seq: 4096, label: "mha_tp4_b16_s4k"}
+    - {mode: mha, tp: 4, batch: 16, seq: 8192, label: "mha_tp4_b16_s8k"}
+
+  # GQA combinations (3 TP × 4 Batch × 2 Seq = 24 configs)
+  gqa_combinations:
+    # TP=1
+    - {mode: gqa, tp: 1, batch: 4,  seq: 4096, label: "gqa_tp1_b4_s4k"}
+    - {mode: gqa, tp: 1, batch: 4,  seq: 8192, label: "gqa_tp1_b4_s8k"}
+    - {mode: gqa, tp: 1, batch: 8,  seq: 4096, label: "gqa_tp1_b8_s4k"}
+    - {mode: gqa, tp: 1, batch: 8,  seq: 8192, label: "gqa_tp1_b8_s8k"}
+    - {mode: gqa, tp: 1, batch: 12, seq: 4096, label: "gqa_tp1_b12_s4k"}
+    - {mode: gqa, tp: 1, batch: 12, seq: 8192, label: "gqa_tp1_b12_s8k"}
+    - {mode: gqa, tp: 1, batch: 16, seq: 4096, label: "gqa_tp1_b16_s4k"}
+    - {mode: gqa, tp: 1, batch: 16, seq: 8192, label: "gqa_tp1_b16_s8k"}
+    # TP=2
+    - {mode: gqa, tp: 2, batch: 4,  seq: 4096, label: "gqa_tp2_b4_s4k"}
+    - {mode: gqa, tp: 2, batch: 4,  seq: 8192, label: "gqa_tp2_b4_s8k"}
+    - {mode: gqa, tp: 2, batch: 8,  seq: 4096, label: "gqa_tp2_b8_s4k"}
+    - {mode: gqa, tp: 2, batch: 8,  seq: 8192, label: "gqa_tp2_b8_s8k"}
+    - {mode: gqa, tp: 2, batch: 12, seq: 4096, label: "gqa_tp2_b12_s4k"}
+    - {mode: gqa, tp: 2, batch: 12, seq: 8192, label: "gqa_tp2_b12_s8k"}
+    - {mode: gqa, tp: 2, batch: 16, seq: 4096, label: "gqa_tp2_b16_s4k"}
+    - {mode: gqa, tp: 2, batch: 16, seq: 8192, label: "gqa_tp2_b16_s8k"}
+    # TP=4
+    - {mode: gqa, tp: 4, batch: 4,  seq: 4096, label: "gqa_tp4_b4_s4k"}
+    - {mode: gqa, tp: 4, batch: 4,  seq: 8192, label: "gqa_tp4_b4_s8k"}
+    - {mode: gqa, tp: 4, batch: 8,  seq: 4096, label: "gqa_tp4_b8_s4k"}
+    - {mode: gqa, tp: 4, batch: 8,  seq: 8192, label: "gqa_tp4_b8_s8k"}
+    - {mode: gqa, tp: 4, batch: 12, seq: 4096, label: "gqa_tp4_b12_s4k"}
+    - {mode: gqa, tp: 4, batch: 12, seq: 8192, label: "gqa_tp4_b12_s8k"}
+    - {mode: gqa, tp: 4, batch: 16, seq: 4096, label: "gqa_tp4_b16_s4k"}
+    - {mode: gqa, tp: 4, batch: 16, seq: 8192, label: "gqa_tp4_b16_s8k"}
+
+  # MQA combinations (3 TP × 4 Batch × 2 Seq = 24 configs)
+  mqa_combinations:
+    # TP=1
+    - {mode: mqa, tp: 1, batch: 4,  seq: 4096, label: "mqa_tp1_b4_s4k"}
+    - {mode: mqa, tp: 1, batch: 4,  seq: 8192, label: "mqa_tp1_b4_s8k"}
+    - {mode: mqa, tp: 1, batch: 8,  seq: 4096, label: "mqa_tp1_b8_s4k"}
+    - {mode: mqa, tp: 1, batch: 8,  seq: 8192, label: "mqa_tp1_b8_s8k"}
+    - {mode: mqa, tp: 1, batch: 12, seq: 4096, label: "mqa_tp1_b12_s4k"}
+    - {mode: mqa, tp: 1, batch: 12, seq: 8192, label: "mqa_tp1_b12_s8k"}
+    - {mode: mqa, tp: 1, batch: 16, seq: 4096, label: "mqa_tp1_b16_s4k"}
+    - {mode: mqa, tp: 1, batch: 16, seq: 8192, label: "mqa_tp1_b16_s8k"}
+    # TP=2
+    - {mode: mqa, tp: 2, batch: 4,  seq: 4096, label: "mqa_tp2_b4_s4k"}
+    - {mode: mqa, tp: 2, batch: 4,  seq: 8192, label: "mqa_tp2_b4_s8k"}
+    - {mode: mqa, tp: 2, batch: 8,  seq: 4096, label: "mqa_tp2_b8_s4k"}
+    - {mode: mqa, tp: 2, batch: 8,  seq: 8192, label: "mqa_tp2_b8_s8k"}
+    - {mode: mqa, tp: 2, batch: 12, seq: 4096, label: "mqa_tp2_b12_s4k"}
+    - {mode: mqa, tp: 2, batch: 12, seq: 8192, label: "mqa_tp2_b12_s8k"}
+    - {mode: mqa, tp: 2, batch: 16, seq: 4096, label: "mqa_tp2_b16_s4k"}
+    - {mode: mqa, tp: 2, batch: 16, seq: 8192, label: "mqa_tp2_b16_s8k"}
+    # TP=4
+    - {mode: mqa, tp: 4, batch: 4,  seq: 4096, label: "mqa_tp4_b4_s4k"}
+    - {mode: mqa, tp: 4, batch: 4,  seq: 8192, label: "mqa_tp4_b4_s8k"}
+    - {mode: mqa, tp: 4, batch: 8,  seq: 4096, label: "mqa_tp4_b8_s4k"}
+    - {mode: mqa, tp: 4, batch: 8,  seq: 8192, label: "mqa_tp4_b8_s8k"}
+    - {mode: mqa, tp: 4, batch: 12, seq: 4096, label: "mqa_tp4_b12_s4k"}
+    - {mode: mqa, tp: 4, batch: 12, seq: 8192, label: "mqa_tp4_b12_s8k"}
+    - {mode: mqa, tp: 4, batch: 16, seq: 4096, label: "mqa_tp4_b16_s4k"}
+    - {mode: mqa, tp: 4, batch: 16, seq: 8192, label: "mqa_tp4_b16_s8k"}
+
+  # Recommended test subsets
+  recommended_subsets:
+    # Quick validation (6 configs)
+    quick:
+      description: "Quick validation - test TP=1 and TP=4 for each mode"
+      count: 6
+      tests:
+        - mha_tp1_b8_s4k
+        - mha_tp4_b8_s4k
+        - gqa_tp1_b8_s8k
+        - gqa_tp4_b8_s8k
+        - mqa_tp1_b8_s4k
+        - mqa_tp4_b8_s4k
+
+    # TP scalability (9 configs)
+    tp_scalability:
+      description: "TP scalability test - test TP=1/2/4"
+      count: 9
+      tests:
+        - mha_tp1_b8_s4k
+        - mha_tp2_b8_s4k
+        - mha_tp4_b8_s4k
+        - gqa_tp1_b8_s8k
+        - gqa_tp2_b8_s8k
+        - gqa_tp4_b8_s8k
+        - mqa_tp1_b8_s4k
+        - mqa_tp2_b8_s4k
+        - mqa_tp4_b8_s4k
+
+    # GQA performance tuning (12 configs)
+    gqa_performance:
+      description: "GQA performance tuning - Batch sweep"
+      count: 12
+      tests:
+        - gqa_tp4_b4_s4k
+        - gqa_tp4_b8_s4k
+        - gqa_tp4_b12_s4k
+        - gqa_tp4_b16_s4k
+        - gqa_tp4_b4_s8k
+        - gqa_tp4_b8_s8k
+        - gqa_tp4_b12_s8k
+        - gqa_tp4_b16_s8k
+        - gqa_tp1_b4_s8k
+        - gqa_tp1_b8_s8k
+        - gqa_tp1_b12_s8k
+        - gqa_tp1_b16_s8k
